@@ -24,5 +24,40 @@ namespace MP5_Bolt_Release
             
             
         }
+
+        [HarmonyPatch(typeof(FVRInteractiveObject), "BeginInteraction")]
+        [HarmonyPrefix]
+        private static void CloseBoltWeaponPatch(FVRInteractiveObject __instance)
+        {
+            Debug.Log("");
+            Debug.Log("");
+            Debug.Log("Player is hold the weapon");
+            
+            
+            Debug.Log("objecst name : " + __instance.name);
+            Debug.Log("object type : " + __instance.GetType());
+            Debug.Log("parents name : " + __instance.transform.parent.gameObject.name);
+            Debug.Log("parents type : " + __instance.transform.parent.gameObject.GetType());
+
+            if (__instance.GetType() == typeof(FVRAlternateGrip))
+            {
+                Debug.Log("This is an alternate grip");
+
+                var thisObject = __instance as FVRAlternateGrip;
+                
+                Debug.Log("This primary objects name :  " + thisObject.PrimaryObject.name);
+                
+                
+
+                if (thisObject != null && thisObject.PrimaryObject is ClosedBoltWeapon closedBoltWeapon)
+                {
+                    Debug.Log("Parent is close bolt");
+
+                    var bolt = closedBoltWeapon.Bolt;
+                    Debug.Log("Updating Bolt");
+                    bolt.UpdateBolt();
+                }
+            }
+        }
     }
 }
