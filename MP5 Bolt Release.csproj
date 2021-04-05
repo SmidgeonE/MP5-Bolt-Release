@@ -21,6 +21,9 @@
       <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
         <HintPath>S:\SteamLibrary\steamapps\common\H3VR\h3vr_Data\Managed\UnityEngine.dll</HintPath>
       </Reference>
+      <Reference Include="UnityEngine.VR, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+        <HintPath>S:\SteamLibrary\steamapps\common\H3VR\h3vr_Data\Managed\UnityEngine.VR.dll</HintPath>
+      </Reference>
     </ItemGroup>
 
     <ItemGroup>
