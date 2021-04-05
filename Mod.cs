@@ -10,6 +10,8 @@ namespace MP5_Bolt_Release
     public class Mod : BaseUnityPlugin
     {
         private static bool checkForPlayerPress;
+        private static ClosedBoltWeapon thisClosedBoltWeapon;
+        private static float? newCurrentRotation;
         
         private void Awake()
         {
@@ -21,8 +23,14 @@ namespace MP5_Bolt_Release
             // When the player grabs tghe weapon in the proper place
             // Check for when the press the up key, if they do
             // If it is typeOf ClosedBolt, call ReleaseBolt();
-            
-            
+        }
+
+        private void Update()
+        {
+            if (checkForPlayerPress)
+            {
+                // Do input stuff
+            }
         }
 
         [HarmonyPatch(typeof(FVRInteractiveObject), "BeginInteraction")]
@@ -32,12 +40,6 @@ namespace MP5_Bolt_Release
             Debug.Log("");
             Debug.Log("");
             Debug.Log("Player is hold the weapon");
-            
-            
-            Debug.Log("objecst name : " + __instance.name);
-            Debug.Log("object type : " + __instance.GetType());
-            Debug.Log("parents name : " + __instance.transform.parent.gameObject.name);
-            Debug.Log("parents type : " + __instance.transform.parent.gameObject.GetType());
 
             if (__instance.GetType() == typeof(FVRAlternateGrip))
             {
@@ -46,18 +48,51 @@ namespace MP5_Bolt_Release
                 var thisObject = __instance as FVRAlternateGrip;
                 
                 Debug.Log("This primary objects name :  " + thisObject.PrimaryObject.name);
-                
-                
 
                 if (thisObject != null && thisObject.PrimaryObject is ClosedBoltWeapon closedBoltWeapon)
                 {
                     Debug.Log("Parent is close bolt");
 
-                    var bolt = closedBoltWeapon.Bolt;
-                    Debug.Log("Updating Bolt");
-                    bolt.UpdateBolt();
+                    var boltHandle = closedBoltWeapon.Handle;
+
+                    //Exits the method if the bolt is not in correct position 
+                    if (boltHandle.CurPos != ClosedBoltHandle.HandlePos.Locked)
+                    {
+                        Debug.Log("Bolt is not locked back, so therefore we return");
+                        return;
+                    }
+                    
+
+                    var number = boltHandle.Rot_Standard;
+                        
+                    Debug.Log("number: " + number);
+                    
+                    closedBoltWeapon.Bolt.ReleaseBolt();
+                    boltHandle.transform.localEulerAngles = new Vector3(0, 0, number);
+                    boltHandle.CurPos = ClosedBoltHandle.HandlePos.Rear;
+                        
+                    // Sets the private m_currentRot field
+
+                    thisClosedBoltWeapon = closedBoltWeapon;
+                    newCurrentRotation = number;
                 }
             }
+        }
+
+        [HarmonyPatch(typeof(ClosedBoltHandle), "UpdateHandle")]
+        [HarmonyPrefix]
+        private static void ClosedBoltUpdatePatch(ClosedBolt __instance, float ___m_curSpeed)
+        {
+            Debug.Log("Current speed: " + ___m_curSpeed);
+            
+            if (thisClosedBoltWeapon == null && newCurrentRotation == null)
+            {
+                Debug.Log("both are null");
+                return;
+            }
+            
+            
+            
         }
     }
 }
