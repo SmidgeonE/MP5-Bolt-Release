@@ -8,40 +8,29 @@ using Valve.VR.InteractionSystem.Sample;
 
 namespace MP5_Bolt_Release
 {
-    [BepInPlugin("smack", "smeep", "1.0.0")]
+    [BepInPlugin("MP5_Bolt_Release", "MP5_Bolt_Release", "1.0.0")]
     public class Mod : BaseUnityPlugin
     {
-        private static ClosedBoltWeapon thisClosedBoltWeapon;
-        private static float? newCurrentRotation;
+        private static ClosedBoltWeapon _thisClosedBoltWeapon;
+        private static float? _newCurrentRotation;
 
-        private static bool closeBoltTrigger;
-        private static bool changePrivVariablesTrigger;
+        private static bool _closeBoltTrigger;
+        private static bool _changePrivVariablesTrigger;
 
         private static HandInput _fvrHandInput;
 
         private void Awake()
         {
-            Debug.Log("Patch started");
             Harmony.CreateAndPatchAll(typeof(Mod));
-            Debug.Log("Patch worked");
         }
 
         private void Update()
         {
-            if (_fvrHandInput.TouchpadNorthPressed && _fvrHandInput.TouchpadPressed)
+            if (_fvrHandInput.TouchpadNorthPressed && _fvrHandInput.TouchpadPressed && _closeBoltTrigger)
             {
-                Debug.Log("PRessing");
-            }
-            
-            
-
-            if (_fvrHandInput.TouchpadNorthPressed && _fvrHandInput.TouchpadPressed && closeBoltTrigger)
-            {
-                Debug.Log("Closing Bolt");
-
                 CloseBolt();
-                closeBoltTrigger = false;
-                changePrivVariablesTrigger = true;
+                _closeBoltTrigger = false;
+                _changePrivVariablesTrigger = true;
             }
         }
 
@@ -61,37 +50,45 @@ namespace MP5_Bolt_Release
             if (__instance.GetType() != typeof(FVRAlternateGrip)) return;
 
             var thisObject = __instance as FVRAlternateGrip;
+            
             if (thisObject == null) return;
 
             if (thisObject != null && thisObject.PrimaryObject is ClosedBoltWeapon closedBoltWeapon)
             {
+                if (closedBoltWeapon.Handle == null) return;
+
                 var boltHandle = closedBoltWeapon.Handle;
 
                 //Exits the method if the bolt is not in correct position 
-                if (boltHandle.CurPos != ClosedBoltHandle.HandlePos.Locked)
-                {
-                    Debug.Log("Bolt is not locked back, so therefore we return");
-                    return;
-                }
-                
+                if (boltHandle.CurPos != ClosedBoltHandle.HandlePos.Locked) return;
+
                 var number = boltHandle.Rot_Standard;
                 
                 // Sets the private m_currentRot field
-                thisClosedBoltWeapon = closedBoltWeapon;
-                newCurrentRotation = number;
+                _thisClosedBoltWeapon = closedBoltWeapon;
+                _newCurrentRotation = number;
 
-                closeBoltTrigger = true;
+                _closeBoltTrigger = true;
             }
+        }
+
+        [HarmonyPatch(typeof(FVRInteractiveObject), "EndInteraction")]
+        [HarmonyPrefix]
+        private static void EndInteractionPatch()
+        {
+            _closeBoltTrigger = false;
+            _thisClosedBoltWeapon = null;
+            _changePrivVariablesTrigger = false;
         }
 
         private static void CloseBolt()
         {
-            var boltHandle = thisClosedBoltWeapon.Handle;
+            var boltHandle = _thisClosedBoltWeapon.Handle;
             
-            thisClosedBoltWeapon.Bolt.ReleaseBolt();
+            _thisClosedBoltWeapon.Bolt.ReleaseBolt();
             
-            if (newCurrentRotation != null)
-                boltHandle.transform.localEulerAngles = new Vector3(0, 0, newCurrentRotation.Value);
+            if (_newCurrentRotation != null)
+                boltHandle.transform.localEulerAngles = new Vector3(0, 0, _newCurrentRotation.Value);
             boltHandle.CurPos = ClosedBoltHandle.HandlePos.Rear;
         }
 
@@ -99,15 +96,14 @@ namespace MP5_Bolt_Release
         [HarmonyPrefix]
         private static void ClosedBoltUpdatePatch(ClosedBolt __instance, ref float ___m_curSpeed, ref float ___m_currentRot, ref bool ___m_isAtLockAngle)
         {
-            if (thisClosedBoltWeapon == null || newCurrentRotation == null || changePrivVariablesTrigger == false) return;
-            if (thisClosedBoltWeapon != __instance.Weapon) return;
-
-            Debug.Log("Changing priv variables");
-            ___m_currentRot = newCurrentRotation.Value;
-            newCurrentRotation = null;
+            if (_thisClosedBoltWeapon == null || _newCurrentRotation == null || _changePrivVariablesTrigger == false) return;
+            if (_thisClosedBoltWeapon != __instance.Weapon) return;
+            
+            ___m_currentRot = _newCurrentRotation.Value;
+            _newCurrentRotation = null;
             ___m_isAtLockAngle = false;
             ___m_curSpeed = 0.1f;
-            changePrivVariablesTrigger = false;
+            _changePrivVariablesTrigger = false;
         }
     }
 }
