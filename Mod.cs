@@ -8,7 +8,7 @@ using Valve.VR.InteractionSystem.Sample;
 
 namespace MP5_Bolt_Release
 {
-    [BepInPlugin("MP5_Bolt_Release", "MP5_Bolt_Release", "1.0.0")]
+    [BepInPlugin("MP5_Bolt_Release", "MP5_Bolt_Release", "1.1.0")]
     public class Mod : BaseUnityPlugin
     {
         private static ClosedBoltWeapon _thisClosedBoltWeapon;
@@ -18,6 +18,7 @@ namespace MP5_Bolt_Release
         private static bool _changePrivVariablesTrigger;
 
         private static HandInput _fvrHandInput;
+        private static ControlOptions.CoreControlMode _controlMode;
 
         private void Awake()
         {
@@ -26,7 +27,15 @@ namespace MP5_Bolt_Release
 
         private void Update()
         {
-            if (_fvrHandInput.TouchpadNorthPressed && _fvrHandInput.TouchpadPressed && _closeBoltTrigger)
+            bool isPressed;
+
+            // Gets the input from the player based on if it is streamlined or not.
+            if (_controlMode == ControlOptions.CoreControlMode.Standard)
+                isPressed = _fvrHandInput.TouchpadNorthPressed && _fvrHandInput.TouchpadPressed && _closeBoltTrigger;
+            else
+                isPressed = _fvrHandInput.BYButtonPressed && _closeBoltTrigger;
+            
+            if (isPressed)
             {
                 CloseBolt();
                 _closeBoltTrigger = false;
@@ -89,6 +98,7 @@ namespace MP5_Bolt_Release
             
             if (_newCurrentRotation != null)
                 boltHandle.transform.localEulerAngles = new Vector3(0, 0, _newCurrentRotation.Value);
+            
             boltHandle.CurPos = ClosedBoltHandle.HandlePos.Rear;
         }
 
@@ -104,6 +114,22 @@ namespace MP5_Bolt_Release
             ___m_isAtLockAngle = false;
             ___m_curSpeed = 0.1f;
             _changePrivVariablesTrigger = false;
+        }
+
+        
+        /* These patches get the current control mode */
+        [HarmonyPatch(typeof(GameOptions), "InitializeFromSaveFile")]
+        [HarmonyPrefix]
+        private static void InitialOptionsGrabPatch(GameOptions __instance)
+        {
+            _controlMode = __instance.ControlOptions.CCM;
+        }
+        
+        [HarmonyPatch(typeof(GameOptions), "SaveToFile")]
+        [HarmonyPrefix]
+        private static void UpdateControlOptionsPatch(GameOptions __instance)
+        {
+            _controlMode = __instance.ControlOptions.CCM;
         }
     }
 }
