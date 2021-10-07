@@ -14,6 +14,7 @@ namespace MP5_Bolt_Release
         private static ClosedBoltWeapon _thisClosedBoltWeapon;
         private static float? _newCurrentRotation;
 
+        private static bool _openBoltTrigger;
         private static bool _closeBoltTrigger;
         private static bool _changePrivVariablesTrigger;
 
@@ -27,16 +28,33 @@ namespace MP5_Bolt_Release
 
         private void Update()
         {
-            bool isPressed;
+            bool isPressingReleaseButton;
+            bool isPressingLockButton;
 
             // Gets the input from the player based on if it is streamlined or not.
             if (_controlMode == ControlOptions.CoreControlMode.Standard)
-                isPressed = _fvrHandInput.TouchpadNorthPressed && _fvrHandInput.TouchpadPressed && _closeBoltTrigger;
-            else
-                isPressed = _fvrHandInput.BYButtonPressed && _closeBoltTrigger;
-            
-            if (isPressed)
             {
+                isPressingReleaseButton = _fvrHandInput.TouchpadNorthPressed && _fvrHandInput.TouchpadPressed &&
+                                          _openBoltTrigger;
+                isPressingLockButton = _fvrHandInput.TouchpadSouthPressed && _fvrHandInput.TouchpadPressed &&
+                                       _closeBoltTrigger;
+            }
+            else
+            {
+                isPressingReleaseButton = _fvrHandInput.BYButtonPressed && _openBoltTrigger;
+                isPressingLockButton = _fvrHandInput.TriggerPressed && _closeBoltTrigger;
+            }
+
+            if (isPressingReleaseButton)
+            {
+                Console.WriteLine("opening bolt");
+                OpenBolt();
+                _openBoltTrigger = false;
+                _changePrivVariablesTrigger = true;
+            }
+            else if (isPressingLockButton)
+            {
+                Console.WriteLine("closing bolt");
                 CloseBolt();
                 _closeBoltTrigger = false;
                 _changePrivVariablesTrigger = true;
@@ -69,15 +87,19 @@ namespace MP5_Bolt_Release
                 var boltHandle = closedBoltWeapon.Handle;
 
                 //Exits the method if the bolt is not in correct position 
-                if (boltHandle.CurPos != ClosedBoltHandle.HandlePos.Locked) return;
-
-                var number = boltHandle.Rot_Standard;
-                
-                // Sets the private m_currentRot field
-                _thisClosedBoltWeapon = closedBoltWeapon;
-                _newCurrentRotation = number;
-
-                _closeBoltTrigger = true;
+                if (boltHandle.CurPos == ClosedBoltHandle.HandlePos.Locked)
+                {
+                    // Sets the private m_currentRot field
+                    _thisClosedBoltWeapon = closedBoltWeapon;
+                    _newCurrentRotation = boltHandle.Rot_Standard;
+                    _openBoltTrigger = true;
+                }
+                else
+                {
+                    _thisClosedBoltWeapon = closedBoltWeapon;
+                    _newCurrentRotation = boltHandle.Rot_Safe;
+                    _closeBoltTrigger = true;
+                }
             }
         }
 
@@ -85,12 +107,13 @@ namespace MP5_Bolt_Release
         [HarmonyPrefix]
         private static void EndInteractionPatch()
         {
+            _openBoltTrigger = false;
             _closeBoltTrigger = false;
             _thisClosedBoltWeapon = null;
             _changePrivVariablesTrigger = false;
         }
 
-        private static void CloseBolt()
+        private static void OpenBolt()
         {
             var boltHandle = _thisClosedBoltWeapon.Handle;
             
@@ -100,6 +123,20 @@ namespace MP5_Bolt_Release
                 boltHandle.transform.localEulerAngles = new Vector3(0, 0, _newCurrentRotation.Value);
             
             boltHandle.CurPos = ClosedBoltHandle.HandlePos.Rear;
+            
+            
+        }
+
+        private static void CloseBolt()
+        {
+            var boltHandle = _thisClosedBoltWeapon.Handle;
+            
+            _thisClosedBoltWeapon.Bolt.LockBolt();
+
+            if (_newCurrentRotation != null)
+                boltHandle.transform.localEulerAngles = new Vector3(0, 0, _newCurrentRotation.Value);
+
+            boltHandle.CurPos = ClosedBoltHandle.HandlePos.LockedToRear;
         }
 
         [HarmonyPatch(typeof(ClosedBoltHandle), "UpdateHandle")]
@@ -111,8 +148,19 @@ namespace MP5_Bolt_Release
             
             ___m_currentRot = _newCurrentRotation.Value;
             _newCurrentRotation = null;
-            ___m_isAtLockAngle = false;
-            ___m_curSpeed = 0.1f;
+            
+            if (_closeBoltTrigger)
+            {
+                Console.WriteLine("closing bolt");
+                ___m_isAtLockAngle = true;
+            }
+            else if (_openBoltTrigger)
+            {
+                Console.WriteLine("opening bolt");
+                ___m_isAtLockAngle = false;
+                ___m_curSpeed = 0.1f;
+            }
+            
             _changePrivVariablesTrigger = false;
         }
 
