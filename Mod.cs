@@ -18,6 +18,7 @@ namespace MP5_Bolt_Release
         private static bool _closeBoltTrigger;
         private static bool _changePrivVariablesTrigger;
 
+        private static FVRViveHand interactingHand;
         private static HandInput _fvrHandInput;
         private static ControlOptions.CoreControlMode _controlMode;
 
@@ -68,6 +69,7 @@ namespace MP5_Bolt_Release
         {
             if (__instance.IsThisTheRightHand) return;
             _fvrHandInput = __instance.Input;
+            interactingHand = __instance;
         }
         
         [HarmonyPatch(typeof(FVRInteractiveObject), "BeginInteraction")]
@@ -83,7 +85,7 @@ namespace MP5_Bolt_Release
             if (thisObject != null && thisObject.PrimaryObject is ClosedBoltWeapon closedBoltWeapon)
             {
                 if (closedBoltWeapon.Handle == null) return;
-
+                
                 var boltHandle = closedBoltWeapon.Handle;
 
                 //Exits the method if the bolt is not in correct position 
@@ -123,8 +125,6 @@ namespace MP5_Bolt_Release
                 boltHandle.transform.localEulerAngles = new Vector3(0, 0, _newCurrentRotation.Value);
             
             boltHandle.CurPos = ClosedBoltHandle.HandlePos.Rear;
-            
-            
         }
 
         private static void CloseBolt()
@@ -162,6 +162,18 @@ namespace MP5_Bolt_Release
             }
             
             _changePrivVariablesTrigger = false;
+            
+            /* this resets this entire mod */
+            if (interactingHand == null)
+            {
+                Console.WriteLine("inteactong hand is null");
+                return;
+            }
+
+            var alternateGrip = interactingHand.CurrentInteractable;
+            interactingHand.CurrentInteractable.ForceBreakInteraction();
+            Console.WriteLine("interaction broken");
+            alternateGrip.BeginInteraction(interactingHand);
         }
 
         
